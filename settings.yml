@@ -1,0 +1,6 @@
+default:
+  DB_URL: sqlite://
+  IS_TEST: False
+test:
+  DB_URL: sqlite://
+  IS_TEST: True
