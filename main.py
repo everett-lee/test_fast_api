@@ -1,6 +1,7 @@
+import os
 from typing import List
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 
 from app.crud import crud
@@ -8,8 +9,13 @@ from app.db import models
 from app.db.database import SessionLocal, engine
 from app.schemas import schemas
 
+import aiofiles
+import pathlib
+import uuid
+
 models.Base.metadata.create_all(bind=engine)
 
+BASE_PATH = pathlib.Path(__file__).parent
 
 app = FastAPI()
 
@@ -41,3 +47,14 @@ def read_user(user_id: int, db: Session = Depends(get_db)):
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return db_user
+
+@app.post("/uploadfile/")
+async def create_upload_file(file: UploadFile = File(...)):
+    id = uuid.uuid4()
+    out_file_path = os.path.join(BASE_PATH, f'files/{id}')
+
+    async with aiofiles.open(out_file_path, 'wb') as out_file:
+        content = await file.read()  # async read
+        await out_file.write(content)  # async write
+
+    return {"Result": "OK"}
