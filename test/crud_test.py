@@ -2,7 +2,7 @@ import pytest
 from dynaconf import settings
 
 from app.crud.crud import create_user, get_users
-from app.db import models
+from app.models import models
 from app.db.database import SessionLocal, engine
 from app.schemas.schemas import UserCreate
 
