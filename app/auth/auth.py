@@ -1,21 +1,16 @@
 from datetime import timedelta, datetime
-from typing import List, Optional
-
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-
-from passlib.context import CryptContext
-
-from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
-
-from jose import JWTError, jwt
-
+from typing import Optional
 from typing import Union
 
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from sqlalchemy.orm import Session
+
+from app.auth.schemas import TokenData
 from app.crud import crud
 from app.models.models import User
-from app.auth.schemas import TokenData
 from app.shared.deps import get_db
 
 # FAKE KEY - will be replaced
@@ -35,9 +30,8 @@ def get_password_hash(password) -> str:
     return pwd_context.hash(password)
 
 
-def authenticate_user(db: Session, username: str, password: str) -> Union[bool, User]:
-    print(username, db)
-    user = crud.get_user_by_email(db, username)
+def authenticate_user(db: Session, email: str, password: str) -> Union[bool, User]:
+    user = crud.get_user_by_email(db, email)
     if not user:
         return False
     if not verify_password(password, user.hashed_password):
@@ -51,22 +45,23 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
+        email: str = payload.get("sub")
+        if email is None:
             raise credentials_exception
-        token_data = TokenData(username=username)
+        token_data = TokenData(email=email)
     except JWTError:
         raise credentials_exception
-    user = crud.get_user_by_email(db, token_data.username)
+    user = crud.get_user_by_email(db, token_data.email)
     if user is None:
         raise credentials_exception
     return user
 
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.disabled:
+    if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
